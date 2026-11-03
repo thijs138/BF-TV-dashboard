@@ -138,12 +138,19 @@ const DEADLINE=new Date(2026,10,3,23,59,59), START=new Date(2026,10,5), BF=22;
 /* ===== Referentiedata ===== */
 const D25=[127807.31,84383.49,55590.06,47032.82,67708.98,54933.01,57771.85,44833.26,42580.65,38834.17,37954.73,53980.33,34718.98,46856.40,53781.09,61969.73,32926.13,61866.55,67084.25,56838.94,67260.16,64275.02,162992.65,36375.85,78382.08,56993.98];
 const D24=[113001.19,80407.53,42553.23,58788.01,51922.45,38742.22,55165.19,44495.62,38159.25,40984.70,46280.88,54643.23,50882.83,51865.95,55515.51,53107.46,47151.47,57601.83,75448.13,53218.52,81864.29,77506.09,147142.42,36083.42,78414.09,62842.79];
-const SCEN={laag:-.01,basis:.06,hoog:.14};
+/* ===== Doel ===== */
+const DOEL_NOV=1903000;        // doel hele maand november
+const OMZET_1_4_NOV=null;      // reserve: wordt normaal uit het spreadsheet gelezen (Dagomzet 2026, cel K16)
 const sum=a=>a.reduce((s,v)=>s+(v||0),0);
 const cum=a=>{let s=0;return a.map(v=>v==null?null:(s+=v))};
 const T25=sum(D25),T24=sum(D24),C25=cum(D25),C24=cum(D24);
-const scen=k=>D25.map(v=>v*(1+SCEN[k]));
-const TB=T25*(1+SCEN.basis),TH=T25*(1+SCEN.hoog),TL=T25*(1+SCEN.laag);
+// buitendienst-omzet per dag (2024 compleet, 2025 alleen dag 1 t/m 7 bekend)
+const BD24=[80252.39,44718.64,17008.22,14807.79,19807.75,14895.76,23386.44,20850.46,13770.72,13789.33,5068.39,14848.51,21100.28,16748.96,23077.14,24015.27,11503.14,10421.67,26131.40,18456.71,32862.05,25542.56,50573.67,648.95,10160.29,22554.88];
+const BD25=[90394.27,51710.29,21084.16,10010.68,28342.56,19831.10,34450.61];
+const TBS=T25*1.06; // basisscenario collega (+6% t.o.v. 2025)
+let PRE=OMZET_1_4_NOV,TD,DD,CD;
+function setDoel(pre){PRE=pre!=null?pre:OMZET_1_4_NOV;TD=PRE!=null?DOEL_NOV-PRE:null;DD=TD?D25.map(v=>v/T25*TD):Array(26).fill(null);CD=cum(DD)}
+setDoel(null);
 
 /* ===== Hulpjes ===== */
 const eur=v=>v==null||!isFinite(v)?"–":(v<0?"−":"")+"€ "+Math.round(Math.abs(v)).toLocaleString("nl-NL");
@@ -170,15 +177,15 @@ function gviz(sheet,range){return new Promise((ok,fail)=>{const cb="__bf"+(++seq
   s.src=`https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=responseHandler:${cb}&headers=0&sheet=${encodeURIComponent(sheet)}&range=${range}&_=${Date.now()}`;
   document.head.appendChild(s)})}
 async function fetchLive(){
-  const [days,exp]=await Promise.all([gviz("Dagomzet 2026","A5:C30"),gviz("Verwachtingen 2026","A6:B65")]);
-  const d26=Array(26).fill(null);
-  days.forEach((r,i)=>{const m=String(r[0]??"").match(/(\d+)/);const idx=m?+m[1]-1:i;if(idx>=0&&idx<26)d26[idx]=num(r[2])});
-  return {d26,exp:exp.map(r=>[String(r[0]??"").trim(),num(r[1])]).filter(e=>e[0]&&e[1])};
+  const [days,exp,pre]=await Promise.all([gviz("Dagomzet 2026","A5:M30"),gviz("Verwachtingen 2026","A6:B65"),gviz("Dagomzet 2026","K16:K16").catch(()=>[])]);
+  const d26=Array(26).fill(null),bd=Array(26).fill(null);
+  days.forEach((r,i)=>{const m=String(r[0]??"").match(/(\d+)/);const idx=m?+m[1]-1:i;if(idx>=0&&idx<26){d26[idx]=num(r[2]);bd[idx]=num(r[12])}});
+  return {d26,bd,pre:num(pre?.[0]?.[0]),exp:exp.map(r=>[String(r[0]??"").trim(),num(r[1])]).filter(e=>e[0]&&e[1])};
 }
 function demoData(){
   const d26=D25.map((v,i)=>i<13?Math.round(v*(1.05+Math.sin(i*1.9)*.12)*100)/100:null);
   const names="Amber Andrea Britt Cristian Dennis Emily Ilse Jasper Jorg Julian Kevin Luna Max Noëlle Peter Quinten Sem Thijs Tess Guus".split(" ");
-  return {d26,exp:names.map((n,i)=>[n,1460000+((i*137911)%500000)+i*13.37])};
+  return {d26,bd:d26.map((v,i)=>v==null?null:Math.round(v*(i<7?.55:.35))),pre:240000,exp:names.map((n,i)=>[n,1460000+((i*137911)%500000)+i*13.37])};
 }
 
 /* ===== Kop: dag/aftellen + klok ===== */
@@ -206,6 +213,9 @@ function fit(total,txt){const bd=document.getElementById("board"),tb=bd.querySel
 let c1,c2,lastData=null;
 function render(data){
   lastData=data;
+  setDoel(data.pre);
+  const bdA=data.bd||[], bdI=bdA.map((v,i)=>v!=null?i:-1).filter(i=>i>=0), bdT=sum(bdA);
+  const bdRef=bdI.length&&bdI.every(i=>i<7)?["2025",sum(bdI.map(i=>BD25[i]))]:bdI.length?["2024",sum(bdI.map(i=>BD24[i]))]:null;
   const dAll=data.d26, tIdx=Math.floor((new Date(now()).setHours(0,0,0,0)-START)/864e5);
   const lastAll=dAll.reduce((a,v,i)=>v!=null?i:a,-1);
   // de dag van vandaag is nog niet af: telt mee in de omzet, maar niet in prognose, groei en klassement
@@ -225,7 +235,6 @@ function render(data){
   const K=(l,v,n,c="")=>`<div class="k ${c}"><span class="l">${l}</span><span class="v">${v}</span><span class="n">${n}</span></div>`;
   let bLo=null,bHi=null;
   if(prog&&filled<26){const rest=T25-C25[last];bLo=total+rest*(1+growth-.10);bHi=total+rest*(1+growth+.10)}
-  else if(!prog){bLo=TL;bHi=TH}
   const vals=[...new Set(ev)].sort((a,b)=>a-b);
   const wi=v=>{const i=vals.indexOf(v);return[i>0?(vals[i-1]+v)/2:-Infinity,i<vals.length-1?(v+vals[i+1])/2:Infinity]};
   const inRace=v=>{if(bLo==null)return true;const[l,h]=wi(v);return h>=bLo&&l<=bHi};
@@ -235,13 +244,13 @@ function render(data){
     K("Groei t.o.v. 2025",`<span class="${cls(growth)}">${pct(growth)}</span>`,`${growth>=0?"+":"−"} ${eur(Math.abs(total-same25)).slice(2)}`),
     K(filled===26?"Eindtotaal":"Prognose",eur(prog),`2025: ${eur(T25)}`),
     partial?K(`Vandaag t/m ${tNow}`,eur(pVal),`nog bezig · 2025 hele dag: ${kE(D25[lastAll])}`):K(`Laatste dag · ${dl(last)}`,eur(d26[last]),`<span class="${cls(d26[last]/D25[last]-1)}">${pct(d26[last]/D25[last]-1)}</span> vs 2025`),
-    K("Nodig/dag voor basis",left?eur(need(TB)):"–",`basisscenario ${mln(TB)}`),
+    TD?K("Doel · nodig per dag",left?eur(need(TD)):"–",`op koers: <span class="${cls(total/CD[last]-1)}">${pct(total/CD[last]-1)}</span> · doel ${mln(TD)}`):K("Doel november",eur(DOEL_NOV),"BF-doel volgt"),
     K("Nog in de race",ev.length?`${raceN} / ${ev.length}`:"–","kunnen nog winnen")
   ].join(""):[
     K("Te verslaan · eindtotaal 2025",eur(T25),"26 dagen, 6 nov t/m 1 dec 2025","hero"),
-    K("Scenario laag",eur(TL),pct(SCEN.laag)+" t.o.v. 2025"),
-    K("Scenario basis",eur(TB),pct(SCEN.basis)+" t.o.v. 2025"),
-    K("Scenario hoog",eur(TH),pct(SCEN.hoog)+" t.o.v. 2025"),
+    K("Doel november",eur(DOEL_NOV),"1 t/m 30 november"),
+    K("Omzet 1 t/m 4 nov",PRE!=null?eur(PRE):"vul in bij K16","vóór de actie"),
+    K("Doel BF-periode",TD?eur(TD):"volgt",TD?`${pct(TD/T25-1)} t.o.v. 2025`:"5 t/m 30 november"),
     K("Voorspellingen",String(exp.length),ev.length?`gemiddeld ${mln(sum(ev)/ev.length)}`:"nog niemand"),
     K("Dagrecord",eur(162992.65),"Black Friday 2025")
   ].join("");
@@ -257,12 +266,12 @@ function render(data){
   const dotLast={pointRadius:d26.map((_,i)=>i===last?Math.round(fs*.5):0)};
   const proj=Array(26).fill(null);
   if(has&&filled<26){proj[last]=C26[last];for(let i=last+1;i<26;i++)proj[i]=proj[i-1]+D25[i]*(1+growth)}
-  const s2=[ds("laag",cum(scen("laag")),"transparent",0),ds("hoog",cum(scen("hoog")),"transparent",0,null,{fill:"-1",backgroundColor:B}),
+  const s2=[ds("Doel",CD,css("--gold"),2.5,[4,5]),
     ds("2026",cum(dAll),A,4,null,{pointRadius:dAll.map((_,i)=>i===lastAll?Math.round(fs*.5):0),segment:{borderDash:c=>partial&&c.p1DataIndex===lastAll?[6,6]:undefined}}),ds("Prognose",proj,A,2.5,[8,6]),ds("2025",C25,Y5,2.5),ds("2024",C24,Y4,2,[6,5])];
-  const s1=[{type:"bar",label:"2025",data:D25,backgroundColor:css("--line"),borderRadius:3,barPercentage:.9,categoryPercentage:.9},
+  const s1=[...(TD?[{type:"line",label:"Doel",data:DD,borderColor:css("--gold"),borderWidth:2,borderDash:[4,5],pointRadius:0,tension:.25,order:-1}]:[]),{type:"bar",label:"2025",data:D25,backgroundColor:css("--line"),borderRadius:3,barPercentage:.9,categoryPercentage:.9},
     {type:"bar",label:"2026",data:dAll,backgroundColor:dAll.map((v,i)=>partial&&i===lastAll?"rgba(255,122,51,.35)":v!=null&&v>=D25[i]?A:"#b8572a"),borderColor:dAll.map((v,i)=>partial&&i===lastAll?A:"transparent"),borderWidth:dAll.map((v,i)=>partial&&i===lastAll?2:0),borderRadius:3,barPercentage:.55,categoryPercentage:.9}];
-  document.getElementById("leg2").innerHTML=leg([[A,"2026"],[A,"Prognose",1],[Y5,"2025"],[Y4,"2024",1],[A,"Scenario laag–hoog","band"]]);
-  document.getElementById("leg1").innerHTML=leg([[A,"2026 (feller = beter dan 2025)"],[css("--line"),"2025"]])+(partial?`<span class="mut">lichte staaf = vandaag, nog bezig</span>`:"");
+  document.getElementById("leg2").innerHTML=leg([[A,"2026"],[A,"Prognose",1],[Y5,"2025"],[Y4,"2024",1]].concat(TD?[[css("--gold"),"Doel",1]]:[]));
+  document.getElementById("leg1").innerHTML=leg([[A,"2026 (feller = beter dan 2025)"],[css("--line"),"2025"]].concat(TD?[[css("--gold"),"Doel",1]]:[]))+(partial?`<span class="mut">lichte staaf = vandaag, nog bezig</span>`:"");
   const fK=v=>"€ "+(v/1000).toLocaleString("nl-NL")+"k",fM=v=>"€ "+(v/1e6).toLocaleString("nl-NL",{maximumFractionDigits:1})+" mln";
   if(c1){c1.destroy();c2.destroy()}
   c2=new Chart(document.getElementById("c2"),{type:"line",data:{labels,datasets:s2},options:opts(fM),plugins:[bfPlug]});
@@ -271,11 +280,12 @@ function render(data){
 
   /* mijlpalen + gebeurtenis */
   const reach=(c,t)=>{const i=c.findIndex(v=>v!=null&&v>=t);return i<0?null:i};
-  const MS=[[500000,"€ 0,5 mln"],[1e6,"€ 1 mln"],[1.5e6,"€ 1,5 mln"],[T25,"Totaal 2025"],[TB,"Basisscenario"],[TH,"Hoog scenario"]];
+  const MS=[[500000,"€ 0,5 mln"],[1e6,"€ 1 mln"],[1.5e6,"€ 1,5 mln"],[T25,"Totaal 2025"],[TBS,"Basisscenario"]].concat(TD?[[TD,"Doel BF"]]:[]);
   const events=[];
   document.getElementById("ms").innerHTML=MS.map(([t,lab])=>{const i=reach(C26,t);if(i!=null&&i===last)events.push(`Mijlpaal: ${lab}`);
-    return i!=null?`<span class="ok">✓ <b>${lab}</b> · dag ${i+1}</span>`:`<span><b>${lab}</b> · ${has?"nog "+eur(t-total):reach(C25,t)==null?"2025: niet gehaald":"2025: dag "+(reach(C25,t)+1)}</span>`}).join("")+
-    `<span>Dagrecord <b>${eur(Math.max(162992.65,...d26.filter(v=>v!=null)))}</b></span>`;
+    return i!=null?`<span class="ok">✓ <b>${lab}</b> · dag ${i+1}</span>`:`<span><b>${lab}</b> · ${has?"nog "+kE(t-total):reach(C25,t)==null?"2025: niet gehaald":"2025: dag "+(reach(C25,t)+1)}</span>`}).join("")+
+    (bdI.length?`<span>Buitendienst <b>${kE(bdT)}</b> · ${pc0(bdT/(total+pVal||1))}${bdRef?` · ${pct(sum(bdI.map(i=>bdA[i]))/bdRef[1]-1)} vs ${bdRef[0]}`:""}</span>`:"")+
+    (()=>{const di=dAll.map((v,i)=>v!=null?i:-1).filter(i=>i>=0);if(!di.length)return`<span>Dagrecord <b>${eur(162992.65)}</b> · 2025</span>`;const b=di.reduce((a,i)=>dAll[i]>dAll[a]?i:a,di[0]);const rec=dAll[b]>162992.65;return`<span class="${rec?"ok":""}">${rec?"✓ ":""}Dagrecord 2026 <b>${eur(dAll[b])}</b> · dag ${b+1}${rec?" · record!":""}</span>`})();
   const bestIdx=has?idx.reduce((a,i)=>d26[i]>d26[a]?i:a,idx[0]):-1;
   if(has&&d26[last]>162992.65&&bestIdx===last)events.unshift(`Nieuw dagrecord: ${eur(d26[last])}!`);
   document.getElementById("ev").textContent=events[0]?"★ "+events[0]:"";
@@ -284,24 +294,25 @@ function render(data){
   const tg=document.getElementById("target"),bd=document.getElementById("board"),st=document.getElementById("strip");
   if(!exp.length){tg.textContent="";st.innerHTML="";bd.innerHTML=`<p class="empty">Nog geen voorspellingen</p>`;return}
   const near=ev.filter(v=>v>T25*.5&&v<T25*2);
-  const pool=near.concat([T25,TB],prog?[prog]:[],bLo!=null?[bLo,bHi]:[]);
+  const pool=near.concat([T25],TD?[TD]:[],prog?[prog]:[],bLo!=null?[bLo,bHi]:[]);
   let lo=Math.min(...pool),hi=Math.max(...pool);const pad=(hi-lo)*.05||50000;lo-=pad;hi+=pad;
   const XP=v=>Math.max(0,Math.min(100,(v-lo)/(hi-lo)*100));
   const ranked=prog?exp.map(([n,v])=>({n,v,d:v-prog})).sort((a,b)=>Math.abs(a.d)-Math.abs(b.d)):[];
-  const leadName=prog?ranked[0]?.n:exp.map(([n,v])=>({n,d:Math.abs(v-TB)})).sort((a,b)=>a.d-b.d)[0]?.n;
+  const leadName=prog?ranked[0]?.n:(TD?exp.map(([n,v])=>({n,d:Math.abs(v-TD)})).sort((a,b)=>a.d-b.d)[0]?.n:null);
   const ticks=[];const stepT=hi-lo>800000?200000:100000;for(let t=Math.ceil(lo/stepT)*stepT;t<=hi;t+=stepT)ticks.push(t);
   st.innerHTML=(bLo!=null?`<div class="band" style="left:${XP(bLo)}%;width:${XP(bHi)-XP(bLo)}%"></div>`:"")+`<div class="axis"></div>`+
     ticks.map(t=>`<span class="t" style="left:${XP(t)}%">${mln(t).replace(",00","")}</span>`).join("")+
-    `<div class="m" style="left:${XP(T25)}%"><span>2025</span></div>`+(!prog?`<div class="m pg" style="left:${XP(TB)}%"><span>basis</span></div>`:"")+(prog?`<div class="m pg" style="left:${XP(prog)}%"><span>${filled===26?"eind":"prognose"}</span></div>`:"")+
+    `<div class="m" style="left:${XP(T25)}%"><span>2025</span></div>`+(TD?`<div class="m${prog?"":" pg"}" style="left:${XP(TD)}%"><span>doel</span></div>`:"")+(prog?`<div class="m pg" style="left:${XP(prog)}%"><span>${filled===26?"eind":"prognose"}</span></div>`:"")+
     exp.map(([n,v])=>`<span class="p${n===leadName?" lead":""}" style="left:${XP(v)}%"></span>`).join("");
   const win=v=>{const[l,h]=wi(v);if(vals.length===1)return"altijd";return l===-Infinity?`onder ${kE(h)}`:h===Infinity?`boven ${kE(l)}`:`${kE(l)} – ${kE(h)}`};
   if(!prog){
-    // vóór de start: voorlopige stand t.o.v. het basisscenario
-    tg.textContent=`voorlopig t.o.v. basisscenario ${eur(TB)}`;
-    const rk=exp.map(([n,v])=>({n,v,d:v-TB})).sort((a,b)=>Math.abs(a.d)-Math.abs(b.d));
+    // vóór de start: voorlopige stand t.o.v. het doel (zolang dat nog niet bekend is: op volgorde van voorspelling)
+    const REF=TD;
+    tg.textContent=REF?`voorlopig t.o.v. doel ${eur(REF)}`:`${exp.length} voorspellingen · op volgorde`;
+    const rk=exp.map(([n,v])=>({n,v,d:REF?v-REF:v})).sort((a,b)=>REF?Math.abs(a.d)-Math.abs(b.d):a.v-b.v);
     let p0=0,pv0=null;
-    bd.innerHTML=`<table><thead><tr><th></th><th>Naam</th><th class="num">Voorspelling</th><th class="num">t.o.v. basis</th><th>Wint als eindomzet</th></tr></thead><tbody>${rk.map((r,i)=>{if(Math.abs(r.d)!==pv0){p0=i+1;pv0=Math.abs(r.d)}
-      return `<tr class="${p0<=3?"p"+p0:""}"><td><span class="rk">${p0}</span></td><td>${esc(r.n)}</td><td class="num">${eurC(r.v)}</td><td class="num ${cls(r.d)}">${r.d>=0?"+":"−"}${eur(Math.abs(r.d)).slice(2)}</td><td class="win">${win(r.v)}</td></tr>`}).join("")}</tbody></table><div class="more"></div>`;
+    bd.innerHTML=`<table><thead><tr><th></th><th>Naam</th><th class="num">Voorspelling</th><th class="num">${REF?"t.o.v. doel":""}</th><th>Wint als eindomzet</th></tr></thead><tbody>${rk.map((r,i)=>{if(Math.abs(r.d)!==pv0){p0=i+1;pv0=Math.abs(r.d)}
+      return `<tr class="${REF&&p0<=3?"p"+p0:""}"><td><span class="rk">${REF?p0:i+1}</span></td><td>${esc(r.n)}</td><td class="num">${eurC(r.v)}</td><td class="num ${REF?cls(r.d):""}">${REF?(r.d>=0?"+":"−")+eur(Math.abs(r.d)).slice(2):""}</td><td class="win">${win(r.v)}</td></tr>`}).join("")}</tbody></table><div class="more"></div>`;
     fit(rk.length,n=>`+ ${n} meer op het dashboard`);return}
   const rankMap=t=>{const r=exp.map(([n,v])=>({n,d:Math.abs(v-t)})).sort((a,b)=>a.d-b.d);const m={};let p=0,pv=null;r.forEach((x,i)=>{if(x.d!==pv){p=i+1;pv=x.d}m[x.n]=p});return m};
   let prevPos=null;
