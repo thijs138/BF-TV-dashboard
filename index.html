@@ -132,7 +132,7 @@ footer{display:grid;grid-template-columns:auto 1fr;gap:1.2rem;align-items:center
 /* ===== Instellingen ===== */
 const P=new URLSearchParams(location.search);
 const SHEET_ID=P.get("sheet")||"1-dHVMz2-ng1Gg8-qflOM7fA1qLpi-HETDhkOqJMHst0";
-const REFRESH=60, DEMO=P.has("demo");
+const REFRESH=60*(+(P.get("minuten")||45)), DEMO=P.has("demo"); // standaard elke 45 minuten nieuwe cijfers
 const DEADLINE=new Date(2026,10,3,23,59,59), START=new Date(2026,10,5), BF=22;
 
 /* ===== Referentiedata ===== */
@@ -260,7 +260,7 @@ function render(data){
   const ds=(label,d,c,w,dash,extra)=>Object.assign({label,data:d,borderColor:c,backgroundColor:c,borderWidth:w,borderDash:dash||[],pointRadius:0,tension:.25,spanGaps:false},extra||{});
   const leg=a=>a.map(([c,t,s])=>`<span><i class="${s==="band"?"band":""}" style="${s==="band"?"":`background:${s?`repeating-linear-gradient(90deg,${c} 0 .4rem,transparent .4rem .7rem)`:c}`}"></i>${t}</span>`).join("");
   const bfPlug={id:"bf",beforeDatasetsDraw(ch){const x=ch.scales.x.getPixelForValue(BF),{top,bottom}=ch.chartArea,g=ch.ctx;g.save();g.fillStyle=css("--accent-soft");g.fillRect(x-fs,top,fs*2,bottom-top);g.fillStyle=M;g.font=`600 ${fs}px "IBM Plex Sans",sans-serif`;g.textAlign="center";g.fillText("BLACK FRIDAY",x,top+fs);g.restore()}};
-  const opts=fmt=>({responsive:true,maintainAspectRatio:false,animation:{duration:600},plugins:{legend:{display:false},tooltip:{enabled:false}},
+  const opts=fmt=>({responsive:true,maintainAspectRatio:false,animation:false,plugins:{legend:{display:false},tooltip:{enabled:false}},
     scales:{x:{grid:{display:false},ticks:{color:M,font:{family:"IBM Plex Mono",size:fs},maxRotation:0}},y:{grid:{color:L},border:{display:false},ticks:{color:M,font:{family:"IBM Plex Mono",size:fs},maxTicksLimit:6,callback:fmt}}}});
   const labels=D25.map((_,i)=>String(i+1));
   const dotLast={pointRadius:d26.map((_,i)=>i===last?Math.round(fs*.5):0)};
@@ -326,17 +326,20 @@ function render(data){
 }
 
 /* ===== Verversen ===== */
+let lastKey="";
 async function load(){
   const dot=document.getElementById("dot"),upd=document.getElementById("upd");
-  try{const data=DEMO?demoData():await fetchLive();document.getElementById("demo").hidden=!DEMO;render(data);
-    dot.className="dot";upd.textContent=`live · bijgewerkt ${new Date().toLocaleTimeString("nl-NL",{hour:"2-digit",minute:"2-digit"})}`}
+  try{const data=DEMO?demoData():await fetchLive();document.getElementById("demo").hidden=!DEMO;
+    // alleen opnieuw tekenen als er echt iets veranderd is, zodat het scherm niet knippert
+    const key=JSON.stringify(data);if(key!==lastKey){lastKey=key;render(data)}
+    dot.className="dot";upd.textContent=`live · bijgewerkt ${new Date().toLocaleTimeString("nl-NL",{hour:"2-digit",minute:"2-digit"})} · elke ${Math.round(REFRESH/60)} min`}
   catch(e){dot.className="dot off";upd.textContent="spreadsheet niet bereikbaar · probeert opnieuw";if(!lastData)render({d26:Array(26).fill(null),exp:[]})}
 }
 let rz;addEventListener("resize",()=>{clearTimeout(rz);rz=setTimeout(()=>lastData&&render(lastData),300)});
 tick();setInterval(tick,1000);
 load();setInterval(load,REFRESH*1000);
-// elk uur volledig herladen, zodat het scherm dagenlang fris blijft
-setTimeout(()=>location.reload(),3600*1000);
+// één keer per nacht (rond 05:00) volledig herladen, zodat het scherm dagenlang fris blijft
+(()=>{const n=new Date(),t=new Date(n);t.setHours(5,0,0,0);if(t<=n)t.setDate(t.getDate()+1);setTimeout(()=>location.reload(),t-n)})();
 </script>
 </body>
 </html>
