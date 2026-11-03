@@ -189,10 +189,10 @@ function tick(){
   const parts=ms=>{const s=Math.max(0,Math.floor(ms/1000));return`${Math.floor(s/86400)}d ${String(Math.floor(s%86400/3600)).padStart(2,"0")}u ${String(Math.floor(s%3600/60)).padStart(2,"0")}m ${String(s%60).padStart(2,"0")}s`};
   const track=`<div class="track">${D25.map((_,i)=>`<span class="${i<day?"done":""}${i===day?" now":""}${i===BF?" bf":""}"></span>`).join("")}</div>`;
   let top;
-  if(n<DEADLINE)top=`Inleveren sluit over <b>${parts(DEADLINE-n)}</b><small>bij Kevin of Thijs</small>`;
-  else if(n<START)top=`Start over <b>${parts(START-n)}</b><small>donderdag 5 november</small>`;
-  else if(day<26){const toBF=BF-day;top=`Dag <b>${day+1}</b> van 26<small>${dl(day)} · ${toBF>0?`nog ${toBF} ${toBF===1?"dag":"dagen"} tot Black Friday`:toBF===0?"vandaag is het Black Friday!":`nog ${25-day} ${25-day===1?"dag":"dagen"} te gaan`}</small>`}
-  else top=`<b>Eindstand</b><small>bedankt allemaal!</small>`;
+  const END=new Date(2026,11,1);
+  if(n<START)top=`Actie start over <b>${parts(START-n)}</b><small>donderdag 5 november</small>`;
+  else if(n<END){const toBF=BF-day;top=`Dag <b>${day+1}</b> van 26<small>loopt al ${parts(n-START).replace(/ \d+s$/,"")} · nog ${parts(END-n).replace(/ \d+s$/,"")} · ${toBF>0?`${toBF} ${toBF===1?"dag":"dagen"} tot Black Friday`:toBF===0?"vandaag is het Black Friday!":"Cyber Week"}</small>`}
+  else top=`<b>Eindstand</b><small>de actie is afgelopen · bedankt allemaal!</small>`;
   document.getElementById("mid").innerHTML=`<div class="top">${top}</div>${track}`;
 }
 
