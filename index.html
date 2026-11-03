@@ -268,10 +268,10 @@ function render(data){
   if(has&&filled<26){proj[last]=C26[last];for(let i=last+1;i<26;i++)proj[i]=proj[i-1]+D25[i]*(1+growth)}
   const s2=[ds("Doel",CD,css("--gold"),2.5,[4,5]),
     ds("2026",cum(dAll),A,4,null,{pointRadius:dAll.map((_,i)=>i===lastAll?Math.round(fs*.5):0),segment:{borderDash:c=>partial&&c.p1DataIndex===lastAll?[6,6]:undefined}}),ds("Prognose",proj,A,2.5,[8,6]),ds("2025",C25,Y5,2.5),ds("2024",C24,Y4,2,[6,5])];
-  const s1=[...(TD?[{type:"line",label:"Doel",data:DD,borderColor:css("--gold"),borderWidth:2,borderDash:[4,5],pointRadius:0,tension:.25,order:-1}]:[]),{type:"bar",label:"2025",data:D25,backgroundColor:css("--line"),borderRadius:3,barPercentage:.9,categoryPercentage:.9},
-    {type:"bar",label:"2026",data:dAll,backgroundColor:dAll.map((v,i)=>partial&&i===lastAll?"rgba(255,122,51,.35)":v!=null&&v>=D25[i]?A:"#b8572a"),borderColor:dAll.map((v,i)=>partial&&i===lastAll?A:"transparent"),borderWidth:dAll.map((v,i)=>partial&&i===lastAll?2:0),borderRadius:3,barPercentage:.55,categoryPercentage:.9}];
+  const s1=[...(TD?[{type:"line",label:"Doel",data:DD,borderColor:css("--gold"),borderWidth:2,borderDash:[4,5],pointRadius:0,tension:.25,order:-1}]:[]),{type:"bar",label:"2025",data:D25,backgroundColor:"rgba(167,173,187,.16)",borderColor:"rgba(167,173,187,.45)",borderWidth:1,borderRadius:3,barPercentage:.9,categoryPercentage:.9,order:3},
+    {type:"bar",label:"2026",data:dAll,backgroundColor:dAll.map((v,i)=>partial&&i===lastAll?"rgba(255,122,51,.35)":v!=null&&v>=D25[i]?A:"#c2410c"),borderColor:dAll.map((v,i)=>partial&&i===lastAll?A:"transparent"),borderWidth:dAll.map((v,i)=>partial&&i===lastAll?2:0),order:2,borderRadius:3,barPercentage:.55,categoryPercentage:.9}];
   document.getElementById("leg2").innerHTML=leg([[A,"2026"],[A,"Prognose",1],[Y5,"2025"],[Y4,"2024",1]].concat(TD?[[css("--gold"),"Doel",1]]:[]));
-  document.getElementById("leg1").innerHTML=leg([[A,"2026 (feller = beter dan 2025)"],[css("--line"),"2025"]].concat(TD?[[css("--gold"),"Doel",1]]:[]))+(partial?`<span class="mut">lichte staaf = vandaag, nog bezig</span>`:"");
+  document.getElementById("leg1").innerHTML=leg([[A,"2026 beter dan 2025"],["#c2410c","2026 lager dan 2025"],["rgba(167,173,187,.45)","2025"]].concat(TD?[[css("--gold"),"Doel",1]]:[]))+(partial?`<span class="mut">lichte staaf = vandaag, nog bezig</span>`:"");
   const fK=v=>"€ "+(v/1000).toLocaleString("nl-NL")+"k",fM=v=>"€ "+(v/1e6).toLocaleString("nl-NL",{maximumFractionDigits:1})+" mln";
   if(c1){c1.destroy();c2.destroy()}
   c2=new Chart(document.getElementById("c2"),{type:"line",data:{labels,datasets:s2},options:opts(fM),plugins:[bfPlug]});
