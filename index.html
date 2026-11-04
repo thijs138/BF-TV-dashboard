@@ -70,7 +70,7 @@ h2{margin:0;font-family:var(--display);font-stretch:82%;font-weight:800;font-siz
 .strip .m{position:absolute;top:.6rem;height:4rem;border-left:.2rem dashed var(--muted);font-size:1.05rem;color:var(--muted);white-space:nowrap}
 .strip .m span{position:absolute;top:-.6rem;left:.4rem}
 .strip .m.pg{border-left:.25rem solid var(--accent)}.strip .m.pg span{color:var(--accent);font-weight:600}
-.strip .t{position:absolute;bottom:0;font-family:var(--mono);font-size:1.05rem;color:var(--muted);transform:translateX(-50%)}
+.strip .t{position:absolute;bottom:0;white-space:nowrap;font-family:var(--mono);font-size:1.05rem;color:var(--muted);transform:translateX(-50%)}
 
 /* klassement */
 .board{min-height:0;overflow:hidden}
@@ -97,6 +97,20 @@ footer{display:grid;grid-template-columns:auto 1fr;gap:1.2rem;align-items:center
 .ms span.ok{background:rgba(74,222,128,.14);color:var(--good)}
 .ms span b{color:var(--ink);font-weight:600}
 .ms span.ok b{color:var(--good)}
+/* dagdoel-balk */
+.k .bar{height:.9rem;border-radius:.45rem;background:var(--line);overflow:hidden;margin:.35rem 0 .1rem}
+.k .bar i{display:block;height:100%;background:var(--gold);border-radius:.45rem}
+.k .bar i.done{background:var(--good)}
+/* feest bij nieuw dagrecord */
+#party{position:fixed;inset:0;z-index:50;display:grid;place-items:center;pointer-events:none;background:rgba(10,9,14,.55)}
+#party[hidden]{display:none}
+#party canvas{position:absolute;inset:0;width:100%;height:100%}
+#party .msg{position:relative;text-align:center;font-family:var(--display);font-stretch:72%;font-weight:900;text-transform:uppercase;line-height:.95}
+#party .msg b{display:block;font-size:13rem;color:var(--gold);text-shadow:0 0 3rem rgba(242,193,78,.6);animation:blink .7s steps(2,start) infinite}
+#party .msg span{display:block;font-size:6rem;color:var(--ink);margin-top:1.5rem}
+@keyframes blink{to{visibility:hidden}}
+/* nachtstand 21:00–07:00: gedimd en elke paar minuten een paar pixels verschuiven tegen inbranden */
+body.night .screen{filter:brightness(.6);transition:filter 2s,transform 2s}
 .empty{color:var(--muted);font-size:1.6rem;align-self:center;text-align:center}
 </style>
 </head>
@@ -126,6 +140,7 @@ footer{display:grid;grid-template-columns:auto 1fr;gap:1.2rem;align-items:center
 
   <footer><div class="ev" id="ev"></div><div class="ms" id="ms"></div></footer>
 </div>
+<div id="party" hidden><canvas id="conf"></canvas><div class="msg"><b>Nieuw dagrecord</b><span id="partyAmt"></span></div></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script>
@@ -147,6 +162,8 @@ const T25=sum(D25),T24=sum(D24),C25=cum(D25),C24=cum(D24);
 // buitendienst-omzet per dag (2024 compleet, 2025 alleen dag 1 t/m 7 bekend)
 const BD24=[80252.39,44718.64,17008.22,14807.79,19807.75,14895.76,23386.44,20850.46,13770.72,13789.33,5068.39,14848.51,21100.28,16748.96,23077.14,24015.27,11503.14,10421.67,26131.40,18456.71,32862.05,25542.56,50573.67,648.95,10160.29,22554.88];
 const BD25=[90394.27,51710.29,21084.16,10010.68,28342.56,19831.10,34450.61];
+// verwachte buitendienst-omzet per dag 2026 (2025/2024-patroon +15%, Mike vrij op dag 1, 2, 5, 6)
+const BDV=[94503.10,54060.76,24246.78,11512.28,29630.86,20732.51,39618.20,28547.25,18854.08,18879.56,6939.35,20329.73,28889.29,22931.71,31595.89,32880.33,15749.44,14268.75,35777.61,25269.87,44992.83,34971.40,69242.56,888.51,13910.88,30880.84];
 const TBS=T25*1.06; // basisscenario collega (+6% t.o.v. 2025)
 let PRE=OMZET_1_4_NOV,TD,DD,CD;
 function setDoel(pre){PRE=pre!=null?pre:OMZET_1_4_NOV;TD=PRE!=null?DOEL_NOV-PRE:null;DD=TD?D25.map(v=>v/T25*TD):Array(26).fill(null);CD=cum(DD)}
@@ -243,7 +260,9 @@ function render(data){
     K(`Omzet tot nu toe${partial?` · incl. vandaag t/m ${tNow}`:` · ${filled} van 26 dagen`}`,eurC(total+pVal),partial?`${filled} hele dagen: ${eur(total)} · vandaag: ${eur(pVal)}`:`2025 had toen ${eur(same25)}`,"hero"),
     K("Groei t.o.v. 2025",`<span class="${cls(growth)}">${pct(growth)}</span>`,`${growth>=0?"+":"−"} ${eur(Math.abs(total-same25)).slice(2)}`),
     K(filled===26?"Eindtotaal":"Prognose",eur(prog),`2025: ${eur(T25)}`),
-    partial?K(`Vandaag t/m ${tNow}`,eur(pVal),`nog bezig · 2025 hele dag: ${kE(D25[lastAll])}`):K(`Laatste dag · ${dl(last)}`,eur(d26[last]),`<span class="${cls(d26[last]/D25[last]-1)}">${pct(d26[last]/D25[last]-1)}</span> vs 2025`),
+    (()=>{if(tIdx<0||tIdx>25)return K(`Laatste dag · ${dl(last)}`,eur(d26[last]),`<span class="${cls(d26[last]/D25[last]-1)}">${pct(d26[last]/D25[last]-1)}</span> vs 2025`);
+      const goal=TD?DD[tIdx]:D25[tIdx],v=dAll[tIdx]||0,r=v/goal;
+      return `<div class="k"><span class="l">Vandaag · dagdoel ${kE(goal)}</span><span class="v">${eur(v)}</span><div class="bar"><i class="${r>=1?"done":""}" style="width:${Math.min(100,r*100)}%"></i></div><span class="n">${r>=1?"✓ dagdoel gehaald":pc0(r)+" van dagdoel"}${last>=0&&last!==tIdx?` · gisteren ${kE(d26[last])}`:""}</span></div>`})(),
     TD?K("Doel · nodig per dag",left?eur(need(TD)):"–",`op koers: <span class="${cls(total/CD[last]-1)}">${pct(total/CD[last]-1)}</span> · doel ${mln(TD)}`):K("Doel november",eur(DOEL_NOV),"BF-doel volgt"),
     K("Nog in de race",ev.length?`${raceN} / ${ev.length}`:"–","kunnen nog winnen")
   ].join(""):[
@@ -284,10 +303,15 @@ function render(data){
   const events=[];
   document.getElementById("ms").innerHTML=MS.map(([t,lab])=>{const i=reach(C26,t);if(i!=null&&i===last)events.push(`Mijlpaal: ${lab}`);
     return i!=null?`<span class="ok">✓ <b>${lab}</b> · dag ${i+1}</span>`:`<span><b>${lab}</b> · ${has?"nog "+kE(t-total):reach(C25,t)==null?"2025: niet gehaald":"2025: dag "+(reach(C25,t)+1)}</span>`}).join("")+
-    (bdI.length?`<span>Buitendienst <b>${kE(bdT)}</b> · ${pc0(bdT/(total+pVal||1))}${bdRef?` · ${pct(sum(bdI.map(i=>bdA[i]))/bdRef[1]-1)} vs ${bdRef[0]}`:""}</span>`:"")+
+    (bdI.length?(()=>{const exp_=sum(bdI.map(i=>BDV[i])),r=bdT/exp_-1;return`<span class="${r>=0?"ok":""}">Buitendienst <b>${kE(bdT)}</b> · ${pct(r)} vs verwachting ${kE(exp_)}</span>`})():"")+
     (()=>{const di=dAll.map((v,i)=>v!=null?i:-1).filter(i=>i>=0);if(!di.length)return`<span>Dagrecord <b>${eur(162992.65)}</b> · 2025</span>`;const b=di.reduce((a,i)=>dAll[i]>dAll[a]?i:a,di[0]);const rec=dAll[b]>162992.65;return`<span class="${rec?"ok":""}">${rec?"✓ ":""}Dagrecord 2026 <b>${eur(dAll[b])}</b> · dag ${b+1}${rec?" · record!":""}</span>`})();
   const bestIdx=has?idx.reduce((a,i)=>d26[i]>d26[a]?i:a,idx[0]):-1;
   if(has&&d26[last]>162992.65&&bestIdx===last)events.unshift(`Nieuw dagrecord: ${eur(d26[last])}!`);
+  { // feest: alleen bij een nieuw dagrecord dat nog niet gevierd is
+    const top=Math.max(0,...dAll.filter(v=>v!=null));
+    let seen=162992.65;try{seen=Math.max(seen,+(localStorage.getItem("bfRecord")||0))}catch(e){}
+    if(top>seen){try{localStorage.setItem("bfRecord",String(top))}catch(e){}party(top)}
+  }
   document.getElementById("ev").textContent=events[0]?"★ "+events[0]:"";
 
   /* klassement */
@@ -301,7 +325,7 @@ function render(data){
   const leadName=prog?ranked[0]?.n:(TD?exp.map(([n,v])=>({n,d:Math.abs(v-TD)})).sort((a,b)=>a.d-b.d)[0]?.n:null);
   const ticks=[];const stepT=hi-lo>800000?200000:100000;for(let t=Math.ceil(lo/stepT)*stepT;t<=hi;t+=stepT)ticks.push(t);
   st.innerHTML=(bLo!=null?`<div class="band" style="left:${XP(bLo)}%;width:${XP(bHi)-XP(bLo)}%"></div>`:"")+`<div class="axis"></div>`+
-    ticks.map(t=>`<span class="t" style="left:${XP(t)}%">${mln(t).replace(",00","")}</span>`).join("")+
+    ticks.filter(t=>XP(t)>4&&XP(t)<94).map(t=>`<span class="t" style="left:${XP(t)}%">${mln(t).replace(",00","")}</span>`).join("")+
     `<div class="m" style="left:${XP(T25)}%"><span>2025</span></div>`+(TD?`<div class="m${prog?"":" pg"}" style="left:${XP(TD)}%"><span>doel</span></div>`:"")+(prog?`<div class="m pg" style="left:${XP(prog)}%"><span>${filled===26?"eind":"prognose"}</span></div>`:"")+
     exp.map(([n,v])=>`<span class="p${n===leadName?" lead":""}" style="left:${XP(v)}%"></span>`).join("");
   const win=v=>{const[l,h]=wi(v);if(vals.length===1)return"altijd";return l===-Infinity?`onder ${kE(h)}`:h===Infinity?`boven ${kE(l)}`:`${kE(l)} – ${kE(h)}`};
@@ -324,6 +348,25 @@ function render(data){
   bd.innerHTML=`<table><thead><tr><th></th><th>Naam</th><th class="num">Voorspelling</th><th class="num">Verschil</th><th>Wint als</th></tr></thead><tbody>${show.map(r=>`<tr class="${r.pos<=3?"p"+r.pos:""}${inRace(r.v)?"":" out"}"><td><span class="rk">${r.pos}</span></td><td>${esc(r.n)}${mv(r.n,r.pos)}</td><td class="num">${eurC(r.v)}</td><td class="num ${cls(r.d)}">${r.d>=0?"+":"−"}${eur(Math.abs(r.d)).slice(2)}</td><td class="win">${win(r.v)}</td></tr>`).join("")}</tbody></table><div class="more"></div>`;
   fit(rows.length,n=>`+ ${n} meer · ${raceN} van ${ev.length} nog in de race`);
 }
+
+/* ===== Feest: confetti + knipperende tekst (ca. 25 seconden) ===== */
+function party(amount){
+  const el=document.getElementById("party"),cv=document.getElementById("conf"),g=cv.getContext("2d");
+  document.getElementById("partyAmt").textContent=eurC(amount);
+  el.hidden=false;cv.width=innerWidth;cv.height=innerHeight;
+  const cols=["#ff7a33","#f2c14e","#4ade80","#f4efe8","#c9ced8","#ff4d6d"];
+  const P=Array.from({length:260},()=>({x:Math.random()*cv.width,y:-Math.random()*cv.height,w:6+Math.random()*10,h:8+Math.random()*14,c:cols[Math.random()*cols.length|0],vy:2+Math.random()*4,vx:-1.5+Math.random()*3,r:Math.random()*6,vr:-.2+Math.random()*.4}));
+  const end=Date.now()+25000;
+  (function f(){g.clearRect(0,0,cv.width,cv.height);
+    P.forEach(p=>{p.x+=p.vx;p.y+=p.vy;p.r+=p.vr;if(p.y>cv.height+20&&Date.now()<end-4000){p.y=-20;p.x=Math.random()*cv.width}
+      g.save();g.translate(p.x,p.y);g.rotate(p.r);g.fillStyle=p.c;g.fillRect(-p.w/2,-p.h/2,p.w,p.h);g.restore()});
+    if(Date.now()<end)requestAnimationFrame(f);else el.hidden=true})();
+}
+/* ===== Nachtstand 21:00–07:00 ===== */
+function night(){const h=new Date().getHours(),on=h>=21||h<7;document.body.classList.toggle("night",on);
+  const sc=document.querySelector(".screen");sc.style.transform=on?`translate(${Math.round(Math.random()*12-6)}px,${Math.round(Math.random()*12-6)}px)`:"none"}
+night();setInterval(night,3*60*1000);
+if(P.has("feest"))setTimeout(()=>party(183289.20),1500); // voorbeeld: ?feest
 
 /* ===== Verversen ===== */
 let lastKey="";
