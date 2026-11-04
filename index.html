@@ -307,10 +307,10 @@ function render(data){
     (()=>{const di=dAll.map((v,i)=>v!=null?i:-1).filter(i=>i>=0);if(!di.length)return`<span>Dagrecord <b>${eur(162992.65)}</b> · 2025</span>`;const b=di.reduce((a,i)=>dAll[i]>dAll[a]?i:a,di[0]);const rec=dAll[b]>162992.65;return`<span class="${rec?"ok":""}">${rec?"✓ ":""}Dagrecord 2026 <b>${eur(dAll[b])}</b> · dag ${b+1}${rec?" · record!":""}</span>`})();
   const bestIdx=has?idx.reduce((a,i)=>d26[i]>d26[a]?i:a,idx[0]):-1;
   if(has&&d26[last]>162992.65&&bestIdx===last)events.unshift(`Nieuw dagrecord: ${eur(d26[last])}!`);
-  { // feest: alleen bij een nieuw dagrecord dat nog niet gevierd is
-    const top=Math.max(0,...dAll.filter(v=>v!=null));
-    let seen=162992.65;try{seen=Math.max(seen,+(localStorage.getItem("bfRecord")||0))}catch(e){}
-    if(top>seen){try{localStorage.setItem("bfRecord",String(top))}catch(e){}party(top)}
+  { // feest: elke dag boven € 162.993 krijgt één keer een melding (per dag onthouden)
+    let done=[];try{done=JSON.parse(localStorage.getItem("bfFeestDagen")||"[]")}catch(e){}
+    const hit=dAll.map((v,i)=>v!=null&&v>162992.65?i:-1).filter(i=>i>=0&&!done.includes(i));
+    if(hit.length){const i=hit[hit.length-1];done.push(...hit);try{localStorage.setItem("bfFeestDagen",JSON.stringify(done))}catch(e){}party(dAll[i])}
   }
   document.getElementById("ev").textContent=events[0]?"★ "+events[0]:"";
 
@@ -367,6 +367,7 @@ function night(){const h=new Date().getHours(),on=h>=21||h<7;document.body.class
   const sc=document.querySelector(".screen");sc.style.transform=on?`translate(${Math.round(Math.random()*12-6)}px,${Math.round(Math.random()*12-6)}px)`:"none"}
 night();setInterval(night,3*60*1000);
 if(P.has("feest"))setTimeout(()=>party(183289.20),1500); // voorbeeld: ?feest
+if(P.has("reset")){try{localStorage.removeItem("bfFeestDagen");localStorage.removeItem("bfRecord")}catch(e){}} // ?reset = meldingen opnieuw laten afgaan
 
 /* ===== Verversen ===== */
 let lastKey="";
