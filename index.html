@@ -159,11 +159,11 @@ const OMZET_1_4_NOV=null;      // reserve: wordt normaal uit het spreadsheet gel
 const sum=a=>a.reduce((s,v)=>s+(v||0),0);
 const cum=a=>{let s=0;return a.map(v=>v==null?null:(s+=v))};
 const T25=sum(D25),T24=sum(D24),C25=cum(D25),C24=cum(D24);
-// buitendienst-omzet per dag (2024 compleet, 2025 alleen dag 1 t/m 7 bekend)
+// buitendienst-omzet per dag (2024 en 2025 compleet)
 const BD24=[80252.39,44718.64,17008.22,14807.79,19807.75,14895.76,23386.44,20850.46,13770.72,13789.33,5068.39,14848.51,21100.28,16748.96,23077.14,24015.27,11503.14,10421.67,26131.40,18456.71,32862.05,25542.56,50573.67,648.95,10160.29,22554.88];
-const BD25=[90394.27,51710.29,21084.16,10010.68,28342.56,19831.10,34450.61];
-// verwachte buitendienst-omzet per dag 2026 (2025/2024-patroon +15%, Mike vrij op dag 1, 2, 5, 6)
-const BDV=[94503.10,54060.76,24246.78,11512.28,29630.86,20732.51,39618.20,28547.25,18854.08,18879.56,6939.35,20329.73,28889.29,22931.71,31595.89,32880.33,15749.44,14268.75,35777.61,25269.87,44992.83,34971.40,69242.56,888.51,13910.88,30880.84];
+const BD25=[90394.27,61403.49,21084.16,10010.68,28342.56,19831.10,34450.61,25532.11,21119.49,10351.03,3613.43,25983.48,13912.27,11621.02,29055.36,33657.14,5440.66,11942.52,24510.73,20652.76,31414.23,22813.69,78971.89,6927.31,17031.01,21787.42]; // buitendienst 2025, alle 26 dagen (totaal € 681.854,42)
+// verwachte buitendienst-omzet per dag 2026: buitendienst 2025 +15%, Mike vrij op dag 1, 2, 5, 6 (1/11 minder)
+const BDV=[94503.10,64194.56,24246.78,11512.28,29630.86,20732.51,39618.20,29361.93,24287.41,11903.68,4155.44,29881.00,15999.11,13364.17,33413.66,38705.71,6256.76,13733.90,28187.34,23750.67,36126.36,26235.74,90817.67,7966.41,19585.66,25055.53];
 const TBS=T25*1.06; // basisscenario collega (+6% t.o.v. 2025)
 let PRE=OMZET_1_4_NOV,TD,DD,CD;
 function setDoel(pre){PRE=pre!=null?pre:OMZET_1_4_NOV;TD=PRE!=null?DOEL_NOV-PRE:null;DD=TD?D25.map(v=>v/T25*TD):Array(26).fill(null);CD=cum(DD)}
@@ -232,7 +232,7 @@ function render(data){
   lastData=data;
   setDoel(data.pre);
   const bdA=data.bd||[], bdI=bdA.map((v,i)=>v!=null?i:-1).filter(i=>i>=0), bdT=sum(bdA);
-  const bdRef=bdI.length&&bdI.every(i=>i<7)?["2025",sum(bdI.map(i=>BD25[i]))]:bdI.length?["2024",sum(bdI.map(i=>BD24[i]))]:null;
+  const bdRef=bdI.length?["2025",sum(bdI.map(i=>BD25[i]))]:null;
   const dAll=data.d26, tIdx=Math.floor((new Date(now()).setHours(0,0,0,0)-START)/864e5);
   const lastAll=dAll.reduce((a,v,i)=>v!=null?i:a,-1);
   // de dag van vandaag is nog niet af: telt mee in de omzet, maar niet in prognose, groei en klassement
