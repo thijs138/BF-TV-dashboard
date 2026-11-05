@@ -47,6 +47,10 @@ h1 span{color:var(--accent)}
 .k .l{font-size:1.1rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .k .v{font-family:var(--display);font-stretch:74%;font-weight:900;font-size:3.6rem;line-height:1;font-variant-numeric:tabular-nums;white-space:nowrap}
 .k.hero .v{font-size:5rem}
+.kpis.act{grid-template-columns:1.55fr 1.55fr repeat(3,1fr)}
+.k.today{background:linear-gradient(135deg,#2b2512,var(--panel) 75%);border:1px solid rgba(242,193,78,.45)}
+.k.today .v{font-size:5rem}
+.k.today .bar{height:1.1rem}
 .k .n{font-size:1.25rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
 /* midden */
@@ -256,15 +260,15 @@ function render(data){
   const wi=v=>{const i=vals.indexOf(v);return[i>0?(vals[i-1]+v)/2:-Infinity,i<vals.length-1?(v+vals[i+1])/2:Infinity]};
   const inRace=v=>{if(bLo==null)return true;const[l,h]=wi(v);return h>=bLo&&l<=bHi};
   const raceN=ev.filter(inRace).length;
-  document.getElementById("kpis").innerHTML=(has||partial)?[
-    K(`Omzet tot nu toe${partial?` · incl. vandaag t/m ${tNow}`:` · ${filled} van 26 dagen`}`,eurC(total+pVal),partial?`${filled} hele dagen: ${eur(total)} · vandaag: ${eur(pVal)}`:`2025 had toen ${eur(same25)}`,"hero"),
-    K("Groei t.o.v. 2025",`<span class="${cls(growth)}">${pct(growth)}</span>`,`${growth>=0?"+":"−"} ${eur(Math.abs(total-same25)).slice(2)}`),
-    K(filled===26?"Eindtotaal":"Prognose",eur(prog),`2025: ${eur(T25)}`),
+  document.getElementById("kpis").classList.toggle("act",has||partial||tIdx>=0);
+  document.getElementById("kpis").innerHTML=(has||partial||tIdx>=0)?[
+    K(`Tussenstand${partial?` · incl. vandaag t/m ${tNow}`:` · ${filled} van 26 dagen`}`,eurC(total+pVal),partial?(filled?`${filled} hele dagen: ${eur(total)} · vandaag: ${eur(pVal)}`:`dag 1 is nog bezig`):has?`2025 had toen ${eur(same25)}`:"nog geen omzet ingevuld","hero"),
     (()=>{if(tIdx<0||tIdx>25)return K(`Laatste dag · ${dl(last)}`,eur(d26[last]),`<span class="${cls(d26[last]/D25[last]-1)}">${pct(d26[last]/D25[last]-1)}</span> vs 2025`);
       const goal=TD?DD[tIdx]:D25[tIdx],v=dAll[tIdx]||0,r=v/goal;
-      return `<div class="k"><span class="l">Vandaag · dagdoel ${kE(goal)}</span><span class="v">${eur(v)}</span><div class="bar"><i class="${r>=1?"done":""}" style="width:${Math.min(100,r*100)}%"></i></div><span class="n">${r>=1?"✓ dagdoel gehaald":pc0(r)+" van dagdoel"}${last>=0&&last!==tIdx?` · gisteren ${kE(d26[last])}`:""}</span></div>`})(),
+      return `<div class="k today"><span class="l">Omzet vandaag · ${dl(tIdx)} · dagdoel ${kE(goal)}</span><span class="v">${eur(v)}</span><div class="bar"><i class="${r>=1?"done":""}" style="width:${Math.min(100,r*100)}%"></i></div><span class="n">${r>=1?"✓ dagdoel gehaald":pc0(r)+" van dagdoel"}${last>=0&&last!==tIdx?` · gisteren ${kE(d26[last])}`:""}</span></div>`})(),
+    K("Groei t.o.v. 2025",`<span class="${cls(growth)}">${pct(growth)}</span>`,growth==null?"na de eerste hele dag":`${growth>=0?"+":"−"} ${eur(Math.abs(total-same25)).slice(2)}`),
+    K(filled===26?"Eindtotaal":"Prognose",eur(prog),prog?`2025: ${eur(T25)}`:`volgt na de eerste hele dag`),
     TD?K("Doel · nodig per dag",left?eur(need(TD)):"–",`op koers: <span class="${cls(total/CD[last]-1)}">${pct(total/CD[last]-1)}</span> · doel ${mln(TD)}`):K("Doel november",eur(DOEL_NOV),"BF-doel volgt"),
-    K("Nog in de race",ev.length?`${raceN} / ${ev.length}`:"–","kunnen nog winnen")
   ].join(""):[
     K("Te verslaan · eindtotaal 2025",eur(T25),"26 dagen, 6 nov t/m 1 dec 2025","hero"),
     K("Doel november",eur(DOEL_NOV),"1 t/m 30 november"),
